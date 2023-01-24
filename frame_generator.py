@@ -30,7 +30,7 @@ def enter_folder(folder_name):
     os.chdir(folder_path)
 
     #prints the name of folder that is entered
-    print(" \n --- '%s' folder has been ENTERED --- \n",folder_name)
+    print(" \n --- '{}' folder has been ENTERED --- \n".format(folder_name))
 
 def exit_folder():
     #gets current working directory (cwd)
@@ -44,30 +44,44 @@ def exit_folder():
     os.chdir(pd_path)
     
     folder_name = cwd.rsplit('/',1)[1]
-    print(" \n --- '%s' folder has been EXITED --- \n", folder_name)
+    print(" \n --- '{}' folder has been EXITED --- \n".format(folder_name))
 
 def create_folder(folder_name):
     #gets current working directory (cwd)
     cwd = os.getcwd()
 
     folder_path = os.path.join(cwd, folder_name)
-    os.mkdir(folder_path)
-    print(" \n --- '%s' folder has been CREATED --- \n", folder_name)
+    if os.path.isdir(folder_path):
+        print("\n --- '{}' folder already exists, skipping creation process --- \n".format(folder_name))
+    else:
+        os.mkdir(folder_path)
+        print(" \n --- '{}' folder has been CREATED --- \n".format(folder_name))
+
 
 def extract_zip(file_name):
-  with ZipFile(file_name, 'r') as zip:
-    print("\n Extracting '%s' ... \n", file_name)
-    zip.extractall()
-    print("\n --- Extraction of %s Complete --- \n", file_name)
+    # check if the folder with the same name as the zip file already exists
+    folder_name = file_name.rsplit('.',1)[0]
+    if os.path.isdir(folder_name):
+        print("\n --- Extraction of '{}' already exists, skipping extraction process --- \n".format(file_name))
+        return
+    with ZipFile(file_name, 'r') as zip:
+        print("\n Extracting '{}' ... \n".format(file_name))
+        zip.extractall()
+        print("\n --- Extraction of '{}' Complete --- \n".format(file_name))
+
 
 def extract_zip_in_folder(file_name, folder_name):
-  with ZipFile(file_name, 'r') as zip:
-    print("\n Extracting '%s' ... \n", file_name)
-    create_folder(folder_name)
-    enter_folder(folder_name)
-    zip.extractall()
-    exit_folder()
-    print("\n --- Extraction of %s Complete --- \n", file_name)
+    if os.path.isdir(folder_name):
+        print("\n --- Extraction of '{}' already exists, skipping extraction process --- \n".format(file_name))
+        return
+    with ZipFile(file_name, 'r') as zip:
+        print("\n Extracting '{}' ... \n".format(file_name))
+        create_folder(folder_name)
+        enter_folder(folder_name)
+        zip.extractall()
+        exit_folder()
+        print("\n --- Extraction of '{}' Complete --- \n".format(file_name))
+
 
 def video_expander(video_file):
     # Extract the RGB image and depth map from each frame of a .mkv video file
@@ -80,6 +94,8 @@ def video_expander(video_file):
     create_folder(folder_name)
     enter_folder(folder_name)
 
+    create_folder("RGB_Images")
+    create_folder("Depth_Maps")
     for i in range(num_frames):
     # Read the next frame
         valid, frame = video.read()
@@ -93,10 +109,10 @@ def video_expander(video_file):
         # Check if the frame was successfully read
         if valid:
             # Extract the RGB image
-            rgb_image = frame
+            rgb_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
             # Extract the depth map (assuming the video has a depth map embedded)
-            depth_map = frame[:, :, 2]
+            depth_map = cv2.applyColorMap(frame[:, :, 2], cv2.COLORMAP_JET)
 
             # Do something with the RGB image and depth map
             """
@@ -105,12 +121,17 @@ def video_expander(video_file):
             located.
             """
             # Convert frame (numpy ndarray) to image
-            cv2.imwrite("frame_rgb_{}.jpg".format(i), rgb_image)
-            cv2.imwrite("frame_depth_{}.jpg".format(i), depth_map)
+            enter_folder("RGB_Images")
+            cv2.imwrite("frame_{}.jpg".format(i), rgb_image)
+            exit_folder()
+
+            enter_folder("Depth_Maps")
+            cv2.imwrite("frame_{}.jpg".format(i), depth_map)
+            exit_folder()
 
         else:
             # Handle the case where the frame could not be read
-            print("Frame #%f was not read successfully", i)
+            print("Frame #{} was not read successfully".format(i))
             
     exit_folder()
     # Release the video capture object
@@ -128,12 +149,15 @@ def frame_generator(zip_file):
     enter_folder(folder_name)
     
     cwd = os.getcwd()
-    for video_file in os.listdr(cwd):
+    FILES = [file for file in os.listdir(cwd) if file.endswith(".mkv")]
+    for video_file in FILES:
         video_expander(video_file)
 
     exit_folder()
 
+enter_folder("ECJ")
 frame_generator("sample.mkv.zip")
+exit_folder()
 
 
 
