@@ -155,15 +155,12 @@ def frame_generator(zip_file):
 
     exit_folder()
 
-enter_folder("ECJ")
-frame_generator("sample.mkv.zip")
-exit_folder()
-
-
-
-
-
-
-
-
-
+"""Note: if each zip file is in an individual folder this part of the code must be altered
+    We should just avoid this if possible to not cause any un-needed errors
+"""
+## enter_folder("ECJ") # optional line if zip files are in a folder
+cwd = os.getcwd()
+FILES = [file for file in os.listdir(cwd) if file.endswith(".zip")]
+for zip_file in FILES:
+        frame_generator(zip_file)
+## exit_folder() # optional line if zip files are in a folder
