@@ -1,12 +1,14 @@
 # Created by: Diondre Dubose (01/23/23)
 # Edited by: 
-#  The code converts a set of .mkv files into frames
+#  The code converts a set of .mkv files into frames 
 
 # Import dependecies
 import os
 from zipfile import ZipFile #unzips zip files
 import cv2
-
+import torch
+from torch.utils.data import Dataset
+import numpy as np
 
 """
 Ability 1: Enter folder
@@ -85,7 +87,7 @@ def extract_zip_in_folder(file_name, folder_name):
 
 def video_expander(video_file):
     # Extract the RGB image and depth map from each frame of a .mkv video file
-    video = cv2.VideoCapture(video_file)
+    video = video = cv2.VideoCapture(video_file, cv2.CAP_OPENNI_DEPTH_MAP)
 
     # Number of frames in video
     num_frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -112,7 +114,7 @@ def video_expander(video_file):
             rgb_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
             # Extract the depth map (assuming the video has a depth map embedded)
-            depth_map = cv2.applyColorMap(frame[:, :, 2], cv2.COLORMAP_JET)
+            depth_map = frame[:,:,1]
 
             # Do something with the RGB image and depth map
             """
@@ -145,22 +147,60 @@ def frame_generator(zip_file):
         else:
             break
 
-    extract_zip_in_folder(zip_file,folder_name)
+    extract_zip(zip_file)
     enter_folder(folder_name)
     
     cwd = os.getcwd()
     FILES = [file for file in os.listdir(cwd) if file.endswith(".mkv")]
     for video_file in FILES:
-        video_expander(video_file)
-
+        if not os.path.exists(os.path.join(cwd, video_file.rsplit('.',1)[0])):
+            video_expander(video_file)
+        else:
+            print("{} has already been extracted".format(video_file))
     exit_folder()
 
-"""Note: if each zip file is in an individual folder this part of the code must be altered
-    We should just avoid this if possible to not cause any un-needed errors
-"""
-## enter_folder("ECJ") # optional line if zip files are in a folder
-cwd = os.getcwd()
-FILES = [file for file in os.listdir(cwd) if file.endswith(".zip")]
-for zip_file in FILES:
+class AgentDataset(Dataset):
+    def __init__(self, zip_file):
         frame_generator(zip_file)
-## exit_folder() # optional line if zip files are in a folder
+        folder_name = zip_file.rsplit('.',1)[0]   
+        while(True):
+            if '.' in folder_name:
+                folder_name = folder_name.rsplit('.',1)[0]
+            else:
+                break
+        cwd = os.getcwd()
+        cwd = os.path.join(cwd, folder_name)
+        self.array = []
+        oldcwd = cwd
+        for file in os.listdir(cwd):
+            if file.endswith(".mkv"):
+                i = file.rsplit('.',1)[0]   
+                while(True):
+                    if '.' in i:
+                        i = i.rsplit('.',1)[0]
+                    else:
+                        break
+                self.array.append(i)
+        self.rgb_images = [] 
+        self.depth_maps = []
+        for folder in self.array:  
+            cwd = oldcwd
+            cwd = os.path.join(cwd, folder)
+            self.x = [os.path.join(cwd,"RGB_Images", file) for file in os.listdir(os.path.join(cwd, "RGB_Images")) if file.endswith(".jpg")]
+            self.y = [os.path.join(cwd, "Depth_Maps", file) for file in os.listdir(os.path.join(cwd, "Depth_Maps")) if file.endswith(".jpg")]
+            self.rgb_images += self.x
+            self.depth_maps += self.y
+
+    def __len__(self):
+        return len(self.rgb_images)
+
+    def __getitem__(self, idx):
+        rgb_img = cv2.imread(self.rgb_images[idx])
+        depth_map = cv2.imread(self.depth_maps[idx])
+        return rgb_img, depth_map
+
+ECJ = AgentDataset("roomrecordings_2023_01_22.zip")
+num_frames = ECJ.__len__()
+for frame in range(ECJ.__len__()):    
+    image, depth = ECJ.__getitem__(frame)
+#dataloader = torch.utils.data.DataLoader(ECJ, batch_size=32, shuffle=True)
