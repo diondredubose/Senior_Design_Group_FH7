@@ -9,6 +9,12 @@ import cv2
 import torch
 from torch.utils.data import Dataset
 import numpy as np
+import subprocess
+import open3d as o3d
+
+
+
+
 
 """
 Ability 1: Enter folder
@@ -45,7 +51,7 @@ def exit_folder():
     # go to directory specified by pd_path
     os.chdir(pd_path)
     
-    folder_name = cwd.rsplit('/',1)[1]
+    folder_name = cwd.rsplit('\\', 1)[1]
     print(" \n --- '{}' folder has been EXITED --- \n".format(folder_name))
 
 def create_folder(folder_name):
@@ -73,9 +79,10 @@ def extract_zip(file_name):
 
 
 def extract_zip_in_folder(file_name, folder_name):
-    if os.path.isdir(folder_name):
-        print("\n --- Extraction of '{}' already exists, skipping extraction process --- \n".format(file_name))
-        return
+   #if os.path.isdir(folder_name):
+        #print("\n --- Extraction of '{}' already exists, skipping extraction process --- \n".format(file_name))
+        #return
+
     with ZipFile(file_name, 'r') as zip:
         print("\n Extracting '{}' ... \n".format(file_name))
         create_folder(folder_name)
@@ -87,8 +94,8 @@ def extract_zip_in_folder(file_name, folder_name):
 
 def video_expander(video_file):
     # Extract the RGB image and depth map from each frame of a .mkv video file
-    video = video = cv2.VideoCapture(video_file, cv2.CAP_OPENNI_DEPTH_MAP)
-
+    video = cv2.VideoCapture(video_file, cv2.CAP_OPENNI_DEPTH_MAP)
+    
     # Number of frames in video
     num_frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
     
@@ -114,7 +121,8 @@ def video_expander(video_file):
             rgb_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
             # Extract the depth map (assuming the video has a depth map embedded)
-            depth_map = frame[:,:,1]
+            #depth_map = cv2.cvtColor(frame[:,:,2], cv2.COLORMAP_JET)
+            
 
             # Do something with the RGB image and depth map
             """
@@ -128,9 +136,10 @@ def video_expander(video_file):
             exit_folder()
 
             enter_folder("Depth_Maps")
-            cv2.imwrite("frame_{}.jpg".format(i), depth_map)
+            #place depth file in folder
             exit_folder()
-
+           
+            
         else:
             # Handle the case where the frame could not be read
             print("Frame #{} was not read successfully".format(i))
