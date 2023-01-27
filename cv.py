@@ -1,31 +1,3 @@
-# ----------------------------------------------------------------------------
-# -                        Open3D: www.open3d.org                            -
-# ----------------------------------------------------------------------------
-# The MIT License (MIT)
-#
-# Copyright (c) 2018-2021 www.open3d.org
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in
-# all copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
-# IN THE SOFTWARE.
-# ----------------------------------------------------------------------------
-
-# examples/python/reconstruction_system/sensors/azure_kinect_mkv_reader.py
-
 import argparse
 import open3d as o3d
 import os
@@ -36,8 +8,8 @@ pwd = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(os.path.join(pwd, '..'))
 from initialize_config import initialize_config
 
-innie = r"C:\Users\Admin\Downloads\pytorch_ipynb\DataSet"
-outie = r"C:\Users\Admin\Downloads\pytorch_ipynb\ecj_1202_v3.mkv"
+innie = r'C:\Users\benhu\Desktop\Test_Dataset' # where the file goes
+outie = r'C:\Users\benhu\Desktop\mkv_file\ecj_1202.mkv'## input file
 
 class ReaderWithCallback:
 
@@ -104,14 +76,14 @@ class ReaderWithCallback:
                     vis_geometry_added = True
 
                 if self.output is not None:
-                    color_filename = '{0}/color/{1:05d}.jpg'.format(
+                    color_filename = '{0}/RGB_Images/frame_{1:05d}.jpg'.format(
                         self.output, idx)
-                    print('Writing to {}'.format(color_filename))
+                    #print('Writing to {}'.format(color_filename))
                     o3d.io.write_image(color_filename, rgbd.color)
 
-                    depth_filename = '{0}/depth/{1:05d}.png'.format(
+                    depth_filename = '{0}/Depth_Maps/frame_{1:05d}.png'.format(
                         self.output, idx)
-                    print('Writing to {}'.format(depth_filename))
+                    #print('Writing to {}'.format(depth_filename))
                     o3d.io.write_image(depth_filename, rgbd.depth)
                     idx += 1
 
