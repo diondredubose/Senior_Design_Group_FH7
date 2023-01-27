@@ -11,7 +11,11 @@ from torch.utils.data import Dataset
 import numpy as np
 import subprocess
 import open3d as o3d
-
+import cv as mkv_reader
+import matplotlib.pyplot as plt
+from matplotlib import image
+import torchvision.transforms as transforms
+from PIL import Image
 
 
 
@@ -94,10 +98,7 @@ def extract_zip_in_folder(file_name, folder_name):
 
 def video_expander(video_file):
     # Extract the RGB image and depth map from each frame of a .mkv video file
-    video = cv2.VideoCapture(video_file, cv2.CAP_OPENNI_DEPTH_MAP)
-    
-    # Number of frames in video
-    num_frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
+    where_video_is = os.getcwd()
     
     folder_name = video_file.rsplit('.',1)[0]
     create_folder(folder_name)
@@ -105,48 +106,11 @@ def video_expander(video_file):
 
     create_folder("RGB_Images")
     create_folder("Depth_Maps")
-    for i in range(num_frames):
-    # Read the next frame
-        valid, frame = video.read()
-        """
-        In the code, ' valid, frame = video.read() ' reads the next frame 
-        from the video and assigns it to the frame variable. The ret variable 
-        is a Boolean that is true if the frame was read successfully, otherwise 
-        it is false. The type of frame is a numpy ndarray.
-        """
-         
-        # Check if the frame was successfully read
-        if valid:
-            # Extract the RGB image
-            rgb_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-
-            # Extract the depth map (assuming the video has a depth map embedded)
-            #depth_map = cv2.cvtColor(frame[:,:,2], cv2.COLORMAP_JET)
-            
-
-            # Do something with the RGB image and depth map
-            """
-            By default, the cv2.imwrite() function will save the JPG file to the 
-            current working directory, which is the directory where the script is 
-            located.
-            """
-            # Convert frame (numpy ndarray) to image
-            enter_folder("RGB_Images")
-            cv2.imwrite("frame_{}.jpg".format(i), rgb_image)
-            exit_folder()
-
-            enter_folder("Depth_Maps")
-            #place depth file in folder
-            exit_folder()
-           
-            
-        else:
-            # Handle the case where the frame could not be read
-            print("Frame #{} was not read successfully".format(i))
-            
+    READ_FRAME = mkv_reader.ReaderWithCallback(os.path.join(where_video_is ,video_file),os.getcwd())
+    READ_FRAME.run()
+    now = os.getcwd()
     exit_folder()
-    # Release the video capture object
-    video.release()
+
 
 def frame_generator(zip_file):
     folder_name = zip_file.rsplit('.',1)[0]   
@@ -169,8 +133,9 @@ def frame_generator(zip_file):
     exit_folder()
 
 class AgentDataset(Dataset):
-    def __init__(self, zip_file):
+    def __init__(self, zip_file, transform):
         frame_generator(zip_file)
+        self.transform = transform
         folder_name = zip_file.rsplit('.',1)[0]   
         while(True):
             if '.' in folder_name:
@@ -192,24 +157,43 @@ class AgentDataset(Dataset):
                 self.array.append(i)
         self.rgb_images = [] 
         self.depth_maps = []
+        self.folder_indices = []
+        start_index = 0
         for folder in self.array:  
             cwd = oldcwd
             cwd = os.path.join(cwd, folder)
-            self.x = [os.path.join(cwd,"RGB_Images", file) for file in os.listdir(os.path.join(cwd, "RGB_Images")) if file.endswith(".jpg")]
-            self.y = [os.path.join(cwd, "Depth_Maps", file) for file in os.listdir(os.path.join(cwd, "Depth_Maps")) if file.endswith(".jpg")]
-            self.rgb_images += self.x
-            self.depth_maps += self.y
-
+            if os.path.isdir(os.path.join(cwd, "RGB_Images")) and os.path.isdir(os.path.join(cwd, "Depth_Maps")):
+                self.folder_indices.append(start_index)
+                self.x = [os.path.join(cwd,"RGB_Images", file) for file in os.listdir(os.path.join(cwd, "RGB_Images")) if file.endswith(".jpg")]
+                self.y = [os.path.join(cwd, "Depth_Maps", file) for file in os.listdir(os.path.join(cwd, "Depth_Maps")) if file.endswith(".png")]
+                start_index += len(self.x)
+                self.rgb_images += self.x
+                self.depth_maps += self.y
     def __len__(self):
         return len(self.rgb_images)
+    def __numclips__(self):
+        return len(self.folder_indices)
 
-    def __getitem__(self, idx):
-        rgb_img = cv2.imread(self.rgb_images[idx])
-        depth_map = cv2.imread(self.depth_maps[idx])
-        return rgb_img, depth_map
+    def __getitem__(self, idx, clip=0):
+        rgb_img = Image.open(self.rgb_images[(idx+self.folder_indices[clip])%(len(self.rgb_images))])
+        depth_map = Image.open(self.depth_maps[(idx+self.folder_indices[clip])%(len(self.depth_maps))])
+        if self.transform:
+            rgb_img = self.transform(rgb_img)
+            depth_map = self.transform(depth_map)
+        return np.array(rgb_img), np.array(depth_map)
 
-ECJ = AgentDataset("roomrecordings_2023_01_22.zip")
+#transform = transforms.Compose([transforms.RandomHorizontalFlip(),transforms.RandomRotation(degrees=45)])
+ECJ = AgentDataset("roomrecordings_2023_01_22.zip", transform=None)
 num_frames = ECJ.__len__()
-for frame in range(ECJ.__len__()):    
-    image, depth = ECJ.__getitem__(frame)
-#dataloader = torch.utils.data.DataLoader(ECJ, batch_size=32, shuffle=True)
+for frame in range(ECJ.__numclips__()):
+    #clip parameter is used to skip to start indexing at specific clip
+    image, depth = ECJ.__getitem__(idx=0, clip=frame)
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 5))
+    ax1.imshow(depth, cmap='jet')
+    ax1.set_title("Depth Image")
+    ax2.imshow(image)
+    ax2.set_title("RGB Image")
+    fig.suptitle("Depth and RGB Images")
+    plt.show()
+   
+dataloader = torch.utils.data.DataLoader(ECJ, batch_size=32, shuffle=True)
