@@ -31,6 +31,7 @@ Ability 5: Extract the RGB image
 """
 
 
+
 def enter_folder(folder_name):
     #gets current working directory (cwd)
     cwd = os.getcwd()
