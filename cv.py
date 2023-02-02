@@ -122,7 +122,7 @@ class ReaderWithCallback:
                     vis_geometry_added = True
 
                 if self.output is not None:
-                    color_filename = '{0}/color/{1:05d}.jpg'.format(
+                    color_filename = '{0}/RGB_Images/frame_{1:05d}.jpg'.format(
                         self.output, idx)
                     print('Writing to {}'.format(color_filename))
                     crop = np.array(rgbd.color)
@@ -133,7 +133,7 @@ class ReaderWithCallback:
                     o3d.io.write_image(color_filename, cropped)
 #1280 by 720
 
-                    depth_filename = '{0}/depth/{1:05d}.png'.format(
+                    depth_filename = '{0}/Depth_Maps/frame_{1:05d}.png'.format(
                         self.output, idx)
                     print('Writing to {}'.format(depth_filename))
 
