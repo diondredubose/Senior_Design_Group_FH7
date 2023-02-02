@@ -1,75 +1,61 @@
+# ----------------------------------------------------------------------------
+# -                        Open3D: www.open3d.org                            -
+# ----------------------------------------------------------------------------
+# The MIT License (MIT)
+#
+# Copyright (c) 2018-2021 www.open3d.org
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+# IN THE SOFTWARE.
+# ----------------------------------------------------------------------------
+
+# examples/python/reconstruction_system/sensors/azure_kinect_mkv_reader.py
+
 import argparse
 import open3d as o3d
 import os
 import json
 import sys
+import cv2
+import cv2
+import numpy as np
 from PIL import Image
+from skimage.transform import resize
+
+def center_crop(img, dim):
+	width, height = img.shape[1], img.shape[0]
+	crop_width = dim[0] if dim[0]<img.shape[1] else img.shape[1]
+	crop_height = dim[1] if dim[1]<img.shape[0] else img.shape[0]
+	mid_x, mid_y = int(width/2), int(height/2)
+	cw2, ch2 = int(crop_width/2), int(crop_height/2)
+	crop_img = img[mid_y-ch2:mid_y+ch2, mid_x-cw2:mid_x+cw2]
+	return crop_img
+
+def scale_image(img, factor=1):
+	return cv2.resize(img,(int(img.shape[1]*factor), int(img.shape[0]*factor)))
+
 
 pwd = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(os.path.join(pwd, '..'))
 from initialize_config import initialize_config
 
-innie = r'C:\Users\benhu\Desktop\Test_Dataset' # where the file goes
-outie = r'C:\Users\benhu\Desktop\mkv_file\ecj_1202.mkv'## input file
-
-def squareimage(image):
-    # Open the image
-    im = Image.open(image)
-
-    # Get the aspect ratio
-    aspect_ratio = im.width / im.height
-
-    # Calculate the size of the square
-    size = 572
-
-    # Crop the image
-    if aspect_ratio > 1:
-        # Landscape image
-        left = (im.width - im.height) / 2
-        right = left + im.height
-        top = 0
-        bottom = im.height
-    else:
-        # Portrait image
-        left = 0
-        right = im.width
-        top = (im.height - im.width) / 2
-        bottom = top + im.width
-
-    im = im.crop((left, top, right, bottom))
-
-    # Resize the image to the square shape
-    im = im.resize((size, size))
-
-    # Save the image
-    im.save(image)
-
-def enter_folder(folder_name):
-    #gets current working directory (cwd)
-    cwd = os.getcwd()
-
-    #create folder path
-    folder_path = os.path.join(cwd, folder_name)
-
-    # go to directory specified by folder path
-    os.chdir(folder_path)
-
-    #prints the name of folder that is entered
-    print(" \n --- '{}' folder has been ENTERED --- \n".format(folder_name))
-
-def exit_folder():
-    #gets current working directory (cwd)
-    cwd = os.getcwd()
-
-    #path of parent directory (pd)
-    # os.path.dirname('/home/user/Documents/my_folder') would return /home/user/Documents
-    pd_path = os.path.dirname(cwd)
-
-    # go to directory specified by pd_path
-    os.chdir(pd_path)
-    
-    folder_name = cwd.rsplit('\\', 1)[1]
-    print(" \n --- '{}' folder has been EXITED --- \n".format(folder_name))
+innie = r"C:\Users\Admin\Downloads\pytorch_ipynb\DataSet"
+outie = r"C:\Users\Admin\Downloads\pytorch_ipynb\ecj_1202_v3.mkv"
 
 class ReaderWithCallback:
 
@@ -136,24 +122,26 @@ class ReaderWithCallback:
                     vis_geometry_added = True
 
                 if self.output is not None:
-                    color_filename = '{0}/RGB_Images/frame_{1:05d}.jpg'.format(
+                    color_filename = '{0}/color/{1:05d}.jpg'.format(
                         self.output, idx)
-                    cwd = os.getcwd()
-                    
-                    #print('Writing to {}'.format(color_filename))
-                    o3d.io.write_image(color_filename, rgbd.color)
-                    #enter_folder("RGB_Images")
-                    squareimage(color_filename)
-                    #exit_folder()
+                    print('Writing to {}'.format(color_filename))
+                    crop = np.array(rgbd.color)
 
-                    depth_filename = '{0}/Depth_Maps/frame_{1:05d}.png'.format(
+                    crop = cv2.resize(crop[148:720, 354: 926, 0:3], (572, 572))
+                    cropped = o3d.geometry.Image(crop)
+
+                    o3d.io.write_image(color_filename, cropped)
+#1280 by 720
+
+                    depth_filename = '{0}/depth/{1:05d}.png'.format(
                         self.output, idx)
-                    
-                    #print('Writing to {}'.format(depth_filename))
-                    o3d.io.write_image(depth_filename, rgbd.depth)
-                    #enter_folder("Depth_Maps")
-                    squareimage(depth_filename)
-                    #exit_folder()
+                    print('Writing to {}'.format(depth_filename))
+
+                    cropd = np.array(rgbd.depth)
+
+                    cropd = cv2.resize(cropd[148:720, 354: 926], (572, 572))
+                    cropd = o3d.geometry.Image(cropd)
+                    o3d.io.write_image(depth_filename, cropd)
                     idx += 1
 
             try:
