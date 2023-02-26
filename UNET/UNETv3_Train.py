@@ -1,3 +1,4 @@
+
 from UNETV3 import Unet, mobilenetv3_large
 import kornia
 import time
@@ -6,6 +7,7 @@ import pandas as pd
 import torch
 from sklearn.utils import shuffle
 import torch.nn as nn
+import numpy as np
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
 import kornia.losses.ssim
@@ -13,9 +15,19 @@ from DepthDataset import DepthDataset, Augmentation, ToTensor
 import matplotlib.pyplot as plt
 
 
+net = mobilenetv3_large()
+model_dict = net.state_dict()
+pretrained_dict = torch.load(r"C:\Users\Admin\Downloads\pytorch_ipynb\mobilenet_v3_large-5c1a4163.pth")
+pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
+model_dict.update(pretrained_dict)
+net.load_state_dict(model_dict)
 
 
-Model = Unet(mobilenetv3_large())
+
+
+Model = Unet(net)
+
+
 
 def SSIM(img1, img2, val_range, window_size=11, window=None, size_average=True, full=False):
     return kornia.losses.ssim_loss(img1, img2,window_size=11, max_val=val_range, reduction='none')
@@ -48,10 +60,38 @@ class AverageMeter(object):
 
 # from data import getTrainingTestingData
 # from utils import AverageMeter, DepthNorm, colorize
+class GradLoss(nn.Module):
+    def __init__(self):
+        super(GradLoss, self).__init__()
+    # L1 norm
+    def forward(self, grad_fake, grad_real):
+        return torch.mean( torch.abs(grad_real - grad_fake ))
 
+def imgrad(img):
+    img = torch.mean(img, 1, True)
+    fx = np.array([[1 ,0 ,-1] ,[2 ,0 ,-2] ,[1 ,0 ,-1]])
+    conv1 = nn.Conv2d(1, 1, kernel_size=3, stride=1, padding=1, bias=False)
+    weight = torch.from_numpy(fx).float().unsqueeze(0).unsqueeze(0)
+    if img.is_cuda:
+        weight = weight.cuda()
+    conv1.weight = nn.Parameter(weight)
+    grad_x = conv1(img)
+    # grad y
+    fy = np.array([[1 ,2 ,1] ,[0 ,0 ,0] ,[-1 ,-2 ,-1]])
+    conv2 = nn.Conv2d(1, 1, kernel_size=3, stride=1, padding=1, bias=False)
+    weight = torch.from_numpy(fy).float().unsqueeze(0).unsqueeze(0)
+    if img.is_cuda:
+        weight = weight.cuda()
+    conv2.weight = nn.Parameter(weight)
+    grad_y = conv2(img)
+    return grad_y, grad_x
+def imgrad_yx(img):
+    N ,C ,_ ,_ = img.size()
+    grad_y, grad_x = imgrad(img)
+    return torch.cat((grad_y.view(N ,C ,-1), grad_x.view(N ,C ,-1)), dim=1)
 model = Model.cuda()
 LOAD_DIR = "."
-model.load_state_dict(torch.load('{}/UNET.pth'.format(LOAD_DIR)))
+model.load_state_dict(torch.load('{}/UNET_MBIMAGENET.pth'.format(LOAD_DIR)))
 print('Model Loaded.')
 
 epochs = 50
@@ -65,16 +105,17 @@ traincsv = shuffle(traincsv, random_state=2)
 
 
 depth_dataset = DepthDataset(traincsv=traincsv, root_dir=r"C:\Users\Admin\Downloads\pytorch_ipynb",
-                             transform=transforms.Compose([ ToTensor()]))#can add augmentation when u have small datasets
+                             transform=transforms.Compose([ Augmentation(probability= .6) ,ToTensor()]))#can add augmentation when u have small datasets
 train_loader = DataLoader(depth_dataset, batch_size, shuffle=True)
-l1_criterion = nn.MSELoss()
+l1_criterion = GradLoss()
 optimizer = torch.optim.Adam(model.parameters(), lr, amsgrad= True)
 loss_list = []
 epoch_list = []
-# Start training...
+
+
 for epoch in range(epochs):
 
-    torch.save(model.state_dict(), '{}/UNET.pth'.format(LOAD_DIR))
+    torch.save(model.state_dict(), '{}/UNET_MBIMAGENET.pth'.format(LOAD_DIR))
     batch_time = AverageMeter()
     losses = AverageMeter()
     N = len(train_loader)
@@ -136,4 +177,4 @@ for epoch in range(epochs):
     plt.xlabel("Epoch")
     plt.ylabel("Loss")
     plt.show()
-    torch.save(model.state_dict(), '{}/UNET.pth'.format(LOAD_DIR))
+    torch.save(model.state_dict(), '{}/UNET_MBIMAGENET.pth'.format(LOAD_DIR))
