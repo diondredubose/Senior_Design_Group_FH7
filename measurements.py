@@ -29,21 +29,23 @@ with open(output_file, 'w', newline='') as file:
  writer.writerow(["RAM 2222/1569mal@32.9C PMIC@100C GPU@90 CPU 210/216 SOC 860/864 CV 0/0 VDDRQ 140/144 SYS5V 1880/1889"])
 tegrastats_info = "tegrastats --interval 1000  --logfile results.csv &" #print every 1000 ms
 #repeat this task while the Nano is running
-#subprocess.Popen(tegrastats_info) #write to command and open tegrastats in backgroudn
+#subprocess.Popen(tegrastats_info, shell=True) #write to command and open tegrastats in backgroudn
 num_sec = 0
 f = open(output_file, 'r')
 fig = plt.figure()
+x, y = [], []
+z = plt.plot(x,y)
 
 # Set up plot to call animate() function periodically
-plt.show()
 while True:
  new_output = (f.readline())
  temp_idx = new_output.find('GPU@')
  gpu_temp = new_output[temp_idx+4:temp_idx+6]
  temp_idx = new_output.find('CPU@')
  cpu_temp = new_output[temp_idx+4:temp_idx+6]
- plt.scatter (num_sec, gpu_temp)
  num_sec = num_sec + 1
- plt.show()
+ x.append(gpu_temp)
+ y.append(num_sec)
+ plt.draw(z)
  sleep(1)
 
