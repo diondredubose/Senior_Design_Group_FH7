@@ -7,21 +7,29 @@ import os
 import torch
 import zipfile
 
-nano_ip = "192.168.86.33"
-global_model_path = r"D:\synology\SynologyDrive\Classwork\Diondre\WS2\UNET.pth"
+# TODO move these into a python file only for paths and variables
+global_model_path = r"D:\synology\SynologyDrive\Classwork\Diondre\Senior_Design_Group_FH7\UNET\global_model.zip"  
 remote_model_path = "~/srdsg/Senior_Design_Group_FH7/UNET/"
+remote_model_file = "~/srdsg/Senior_Design_Group_FH7/UNET/trained_model.zip"
+weight_path = r"D:\synology\SynologyDrive\Classwork\Diondre\Senior_Design_Group_FH7\UNET\weights"
 
-remote_model_file = "~/srdsg/Senior_Design_Group_FH7/UNET/UNET_MBIMAGENET.pth"
+nano_ip = "192.168.86.33"
 username = "nano"
 password = "12345678"
-weight_path = r"D:\synology\SynologyDrive\Classwork\Diondre\WS2\weights"
 
 def fed_averager():
     Weights = []
     Global_Model = {}
+
+    for file in os.listdir("{}".format(weight_path)):
+        with zipfile.ZipFile("{}/{}".format(weight_path, file), 'r') as zip_ref:
+            zip_ref.extractall("{}/".format(weight_path))
+        os.remove("{}\{}".format(weight_path, file))
+
     for file in os.listdir("{}".format(weight_path)):
         Weights.append(torch.load("{}/{}".format(weight_path, file), map_location=torch.device('cpu')))
         os.remove("{}/{}".format(weight_path, file))
+
     for i in range(Weights.__len__()):
         for key in Weights[0]:
             temp = Weights[i][key]
@@ -29,8 +37,10 @@ def fed_averager():
                 Global_Model[key] += temp
             else:
                 Global_Model[key] = temp
+
     for key in Global_Model:
         Global_Model[key] = Global_Model[key] / Weights.__len__()
+
     torch.save(obj = Global_Model, f= global_model_path)
     
 
@@ -71,8 +81,6 @@ def communication_send(message_to_send):
 
 
 def send_global_model():
-
-    # add zip file here
 
     # create a new SSH client object
     ssh = paramiko.SSHClient()
@@ -124,6 +132,12 @@ def file_transfer_check(file):
 
     return
 
+LOAD_DIR = "."
+
+# TODO initialze all folders etc
+
+# TODO resend file incase of send failure, time.sleep
+
 
 def main():
     print("running host.py")
@@ -131,9 +145,14 @@ def main():
     while(True):
         if(communication_rec() == "connected"):
             break
+
+
     # loop for multiple federated learning cycles
     for i in range(2):
         print("federated learning loop #", i)
+
+        with zipfile.ZipFile("global_model.zip", mode = 'w') as archive:
+            archive.write(r"UNET_MBIMAGENET.pth")
         
         
         # send global models
@@ -142,11 +161,13 @@ def main():
         communication_send("model_sent")
         print("global model sent to all nanos!")
 
-
+        
         # check file sent correctly
         print("checking file sent sucessfully...")
-        file_transfer_check()
+        file_transfer_check(global_model_path)
 
+        
+        os.remove("{}/{}".format(LOAD_DIR, "global_model.zip"))
 
         # send message to nano to start training models
         print("starting to train models...")
@@ -164,13 +185,14 @@ def main():
         # pull trained models from nanos
         print("receiving trained models...")
         retrieve_global_model()
+        communication_send("model_sent_back")
         print("trained models downloaded!")
 
 
         # check file sent correctly
         print("checking file sent sucessfully...")
-        file_transfer_check()
-
+        
+        file_transfer_check("{}/{}".format(weight_path, "trained_model.zip"))
 
         # aggregate the models together
         print("beginning aggregation of models...")

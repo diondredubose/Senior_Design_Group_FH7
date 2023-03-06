@@ -58,13 +58,9 @@ def main():
             if(communication_rec() == "model_sent"):
                 break
         
-
-        file_size = os.path.getsize(r"{}/UNET_MBIMAGENET.pth".format(LOAD_DIR))
-        communication_send("{}".format(file_size))
         # send file size to host for file size confirmation
-        # unzip
-       
-
+        file_size = os.path.getsize(r"{}/global_model.zip".format(LOAD_DIR))
+        communication_send("{}".format(file_size))
 
         print("waiting for \"start_train\" function")
         while(True):
@@ -72,12 +68,30 @@ def main():
                 break
         
         # unzip file
+        with zipfile.ZipFile("{}/{}".format(LOAD_DIR, "global_model.zip"), 'r') as zip_ref:
+            zip_ref.extractall("{}/".format(LOAD_DIR))
+            os.remove("{}/{}".format(LOAD_DIR, "global_model.zip"))
 
         print("starting to train")
         # start training, call train python file
         model = TrainingLoop(2, 1, .0001)
+        
+        # zip model file
+        with zipfile.ZipFile("trained_model.zip", mode = 'w') as archive:
+            archive.write(r"UNET_MBIMAGENET.pth")
         print("training finished")
         communication_send("train_finish")
+
+        print("waiting for model to be transferred back")
+        while(True):
+            if(communication_rec() == "model_sent_back"):
+                break
+        # send file size to host for file size confirmation
+        file_size = os.path.getsize(r"{}/trained_model.zip".format(LOAD_DIR))
+        communication_send("{}".format(file_size))
+
+        os.remove("{}/{}".format(LOAD_DIR, "UNET_MBIMAGENET.pth"))
+        os.remove("{}/{}".format(LOAD_DIR, "trained_model.zip"))
     
     return
 
