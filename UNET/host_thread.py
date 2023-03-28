@@ -2,7 +2,7 @@ import paramiko
 import scp
 import subprocess
 import time
-import paths
+#import paths
 import socket
 import os
 import torch
@@ -12,32 +12,37 @@ from threading import Thread
 
 # TODO move these into a python file only for paths and variables
 #Note - create a file caled paths.py LOCALLY and it should work (create it within same directory DO NOT UPLOAD TO GIT)
-local_p = paths.global_model_path
-global_model_path = paths.global_model_path
+# local_p = paths.global_model_path
+# global_model_path = paths.global_model_path
+# remote_model_path = "~/srdsg/Senior_Design_Group_FH7/UNET/"
+# remote_model_file = "~/srdsg/Senior_Design_Group_FH7/UNET/trained_model.zip"
+# weight_path = paths.weight_path
+
+global_model_path = r"~/Users/curry/PycharmProjects/Senior_Design_Group_FH7/UNET/global_model.zip"
 remote_model_path = "~/srdsg/Senior_Design_Group_FH7/UNET/"
 remote_model_file = "~/srdsg/Senior_Design_Group_FH7/UNET/trained_model.zip"
-weight_path = paths.weight_path
+weight_path = r"~/Users/curry/PycharmProjects/Senior_Design_Group_FH7/UNET/weights"
 
 nano_ip = ["172.20.10.6"]
 username = ["nano"]
 password = ["12345678"]
-port = [(1000,1024), (23,1025), (24,1026)]
+port = [(8000,1024), (23,1024), (24,1024)]
+LOAD_DIR = "."
 
 class DeviceHandler(Thread):
-    def __init__(self, nano_ip, username, password, port):
+    def __init__(self, nano_ip, username, password, i):
         # execute the base constructor
         Thread.__init__(self)
         self.nano_ip = nano_ip
         self.username = username
         self.password = password
-        self.port = port[0]
-        self.port1 = port[1]
+        self.port = port[i]
 
     def communication_rec(self):
         # create a socket object
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         # bind the socket to a specific network interface and port number
-            s.bind(("0.0.0.0", self.port))
+            s.bind(("0.0.0.0", self.port[0]))
             # listen for incoming connections
             s.listen()
             print('waiting for nano #1 message at {}:{}...'.format("0.0.0.0", self.port))
@@ -48,7 +53,7 @@ class DeviceHandler(Thread):
                 print('Connected by', addr)
 
                 # receive data from the nano
-                data = conn.recv(self.port1)
+                data = conn.recv(self.port[1])
                 print('Received data:', data.decode())
                 received_msg = data.decode()
         s.close
@@ -59,7 +64,7 @@ class DeviceHandler(Thread):
         # create a socket object
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             # connect to the server
-            s.connect((nano_ip, self.port1))
+            s.connect((nano_ip, self.port[1]))
             print('Connected to', nano_ip)
 
             # send data to the server
@@ -73,12 +78,15 @@ class DeviceHandler(Thread):
 
         # create a new SSH client object
         ssh = paramiko.SSHClient()
+        print("ssh created\n")
 
         # automatically add the host key
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        print("ssh keys added\n")
 
         # connect to the Jetson Nano via SSH
-        ssh.connect(hostname=self.nano_ip, username=self.username, password=self.password, port =self.port)
+        ssh.connect(hostname=self.nano_ip, username=self.username, password=self.password, port =self.port[0])
+        print("ssh connected\n")
 
         # create a new SCP object
         client = scp.SCPClient(ssh.get_transport())
@@ -99,7 +107,7 @@ class DeviceHandler(Thread):
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
         # connect to the Jetson Nano via SSH
-        ssh.connect(hostname=self.nano_ip, username=self.username, password=self.password, port=self.port)
+        ssh.connect(hostname=self.nano_ip, username=self.username, password=self.password, port=self.port[0])
 
         # create a new SCP object
         client = scp.SCPClient(ssh.get_transport())
@@ -116,13 +124,11 @@ class DeviceHandler(Thread):
         local_size = os.path.getsize(file)
         print(local_size)
         while(True):
-            if communication_rec() == "{}".format(local_size):
+            if self.communication_rec() == "{}".format(local_size):
                 print("file transferred sucessfully")
                 break
 
         return
-
-    LOAD_DIR = "."
 
     def run(self):
         print("running host.py")
@@ -134,7 +140,7 @@ class DeviceHandler(Thread):
 
         # loop for multiple federated learning cycles
         for i in range(2):
-            print("federated learning loop #", i)
+            print("federated learning loop #", i+1)
 
             with zipfile.ZipFile("global_model.zip", mode = 'w') as archive:
                 archive.write(r"UNET_MBIMAGENET.pth")
@@ -207,23 +213,25 @@ def fed_averager():
         torch.save(obj = Global_Model, f= global_model_path)
 
 def main():
+
     num_devices = 3
     num_cycles = 4
 
     # start fed loop here
     for j in range(num_cycles):
         print("federated averaging loop {}".format(j))
+        devices = DeviceHandler(nano_ip[0], username[0], password[0], j)
         for i in range(num_devices):
-            devices = DeviceHandler(nano_ip[0], username[0] , password[0], port[i])
-            print("Declare thread #1")
+            devices = DeviceHandler(nano_ip[0], username[0], password[0], i)
+            print("Declare thread " + str(i+1))
             devices.start()
-            devices.join()
 
-            # aggregate the models together
-            print("beginning aggregation of models...")
-            fed_averager()
-            print("aggregation complete")
-            #repeat loop
+        devices.join()
+        # aggregate the models together
+        print("beginning aggregation of models...")
+        fed_averager()
+        print("aggregation complete")
+        # repeat loop
 
     
 
