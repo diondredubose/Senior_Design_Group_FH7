@@ -2,6 +2,7 @@ import paramiko
 import scp
 import subprocess
 import time
+import paths
 import socket
 import os
 import torch
@@ -10,15 +11,17 @@ from threading import Thread
 
 
 # TODO move these into a python file only for paths and variables
-global_model_path = r"C:\Users\benhu\SynologyDrive\Classwork\Diondre\Senior_Design_Group_FH7\UNET\global_model.zip"  
+#Note - create a file caled paths.py LOCALLY and it should work (create it within same directory DO NOT UPLOAD TO GIT)
+local_p = paths.global_model_path
+global_model_path = paths.global_model_path
 remote_model_path = "~/srdsg/Senior_Design_Group_FH7/UNET/"
 remote_model_file = "~/srdsg/Senior_Design_Group_FH7/UNET/trained_model.zip"
-weight_path = r"C:\Users\benhu\SynologyDrive\Classwork\Diondre\Senior_Design_Group_FH7\UNET\weights"
+weight_path = paths.weight_path
 
-nano_ip = ["10.201.96.136"]
+nano_ip = ["172.20.10.6"]
 username = ["nano"]
 password = ["12345678"]
-port = [(22,1024), (23,1025), (24,1026)]
+port = [(1000,1024), (23,1025), (24,1026)]
 
 class DeviceHandler(Thread):
     def __init__(self, nano_ip, username, password, port):
@@ -212,6 +215,7 @@ def main():
         print("federated averaging loop {}".format(j))
         for i in range(num_devices):
             devices = DeviceHandler(nano_ip[0], username[0] , password[0], port[i])
+            print("Declare thread #1")
             devices.start()
             devices.join()
 
