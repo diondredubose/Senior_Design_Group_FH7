@@ -15,7 +15,7 @@ remote_model_path = "~/srdsg/Senior_Design_Group_FH7/UNET/"
 remote_model_file = "~/srdsg/Senior_Design_Group_FH7/UNET/trained_model.zip"
 weight_path = r"C:\Users\benhu\SynologyDrive\Classwork\Diondre\Senior_Design_Group_FH7\UNET\weights"
 
-nano_ip = ["192.168.85.233"]
+nano_ip = ["10.201.96.136"]
 username = ["nano"]
 password = ["12345678"]
 port = [(22,1024), (23,1025), (24,1026)]
@@ -29,33 +29,6 @@ class DeviceHandler(Thread):
         self.password = password
         self.port = port[0]
         self.port1 = port[1]
-
-    def fed_averager(self):
-        Weights = []
-        Global_Model = {}
-
-        for file in os.listdir("{}".format(weight_path)):
-            with zipfile.ZipFile("{}/{}".format(weight_path, file), 'r') as zip_ref:
-                zip_ref.extractall("{}/".format(weight_path))
-            os.remove("{}\{}".format(weight_path, file))
-
-        for file in os.listdir("{}".format(weight_path)):
-            Weights.append(torch.load("{}/{}".format(weight_path, file), map_location=torch.device('cpu')))
-            os.remove("{}/{}".format(weight_path, file))
-
-        for i in range(Weights.__len__()):
-            for key in Weights[0]:
-                temp = Weights[i][key]
-                if key in Global_Model:
-                    Global_Model[key] += temp
-                else:
-                    Global_Model[key] = temp
-
-        for key in Global_Model:
-            Global_Model[key] = Global_Model[key] / Weights.__len__()
-
-        torch.save(obj = Global_Model, f= global_model_path)
-    
 
     def communication_rec(self):
         # create a socket object
@@ -202,27 +175,51 @@ class DeviceHandler(Thread):
             print("checking file sent sucessfully...")
             
             self.file_transfer_check("{}/{}".format(weight_path, "trained_model.zip"))
-
-            # aggregate the models together
-            print("beginning aggregation of models...")
-            self.fed_averager()
-            print("aggregation complete")
         return
 
+def fed_averager():
+        Weights = []
+        Global_Model = {}
+
+        for file in os.listdir("{}".format(weight_path)):
+            with zipfile.ZipFile("{}/{}".format(weight_path, file), 'r') as zip_ref:
+                zip_ref.extractall("{}/".format(weight_path))
+            os.remove("{}\{}".format(weight_path, file))
+
+        for file in os.listdir("{}".format(weight_path)):
+            Weights.append(torch.load("{}/{}".format(weight_path, file), map_location=torch.device('cpu')))
+            os.remove("{}/{}".format(weight_path, file))
+
+        for i in range(Weights.__len__()):
+            for key in Weights[0]:
+                temp = Weights[i][key]
+                if key in Global_Model:
+                    Global_Model[key] += temp
+                else:
+                    Global_Model[key] = temp
+
+        for key in Global_Model:
+            Global_Model[key] = Global_Model[key] / Weights.__len__()
+
+        torch.save(obj = Global_Model, f= global_model_path)
 
 def main():
     num_devices = 3
+    num_cycles = 4
 
     # start fed loop here
-    #for i in (loop) or something like that:
-    
-    for i in range(num_devices):
-        devices = DeviceHandler(nano_ip[0], username[0] , password[0], port[i])
-        devices.start()
-        devices.join()
+    for j in range(num_cycles):
+        print("federated averaging loop {}".format(j))
+        for i in range(num_devices):
+            devices = DeviceHandler(nano_ip[0], username[0] , password[0], port[i])
+            devices.start()
+            devices.join()
 
-        #do fed averager
-        #repeat loop
+            # aggregate the models together
+            print("beginning aggregation of models...")
+            fed_averager()
+            print("aggregation complete")
+            #repeat loop
 
     
 
