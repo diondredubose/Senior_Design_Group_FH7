@@ -1,4 +1,3 @@
-
 from UNETv3Small import Unet, mobilenetv3_small
 import kornia
 import time
@@ -17,7 +16,7 @@ import matplotlib.pyplot as plt
 
 net = mobilenetv3_small()
 model_dict = net.state_dict()
-pretrained_dict = torch.load(r"C:\Users\ElCid\anaconda3\Pytorch\mobilenetv3-small-55df8e1f.pth")
+pretrained_dict = torch.load(r"/home/nano/srdsg/Senior_Design_Group_FH7/UNET/mobilenetv3-small-55df8e1f.pth")
 pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
 model_dict.update(pretrained_dict)
 net.load_state_dict(model_dict)
@@ -94,7 +93,7 @@ def imgrad_yx(img):
 
 
 
-def TrainingLoop( batch_size, epochs, lr):
+def TrainingLoop( batch_size, epochs, lr, trained_model_file_name):
     model = Model.cuda()
     LOAD_DIR = "."
     #model.load_state_dict(torch.load('{}/UNET_MBIMAGENET.pth'.format(LOAD_DIR)))
@@ -104,14 +103,14 @@ def TrainingLoop( batch_size, epochs, lr):
     # lr = 0.0001
     # batch_size = 2
 
-    traincsv = pd.read_csv(r"C:\Users\ElCid\anaconda3\Pytorch\nyu_data\data\nyu2_train.csv")
+    traincsv = pd.read_csv(r"/home/nano/srdsg/nyu_data/data/nyu2_train.csv")
     traincsv = traincsv.values.tolist()
     # traincsv = shuffle(traincsv, random_state=2)
 
-    depth_dataset = DepthDataset(traincsv=traincsv, root_dir=r"C:/Users/ElCid/anaconda3/Pytorch/nyu_data/",
+    depth_dataset = DepthDataset(traincsv=traincsv, root_dir=r"/home/nano/srdsg/nyu_data/",
                                  transform=transforms.Compose([Augmentation(probability=.6),
                                                                ToTensor()]))  # can add augmentation when u have small datasets
-    depth_dataset, test_dataset = torch.utils.data.random_split(depth_dataset, [1500, len(depth_dataset) - 1500])
+    depth_dataset, test_dataset = torch.utils.data.random_split(depth_dataset, [10, len(depth_dataset) - 10])
     train_loader = DataLoader(depth_dataset, batch_size, shuffle=True)
 
     #print(len(train_loader))
@@ -122,7 +121,7 @@ def TrainingLoop( batch_size, epochs, lr):
 
     for epoch in range(epochs):
 
-        torch.save(model.state_dict(), '{}/UNET_MBIMAGENET.pth'.format(LOAD_DIR))
+        torch.save(model.state_dict(), '{}/{}}'.format(LOAD_DIR,trained_model_file_name))
         batch_time = AverageMeter()
         losses = AverageMeter()
         N = len(train_loader)
@@ -182,7 +181,6 @@ def TrainingLoop( batch_size, epochs, lr):
         # plt.xlabel("Epoch")
         # plt.ylabel("Loss")
         # plt.show()
-        torch.save(model.state_dict(), '{}/UNET_MBIMAGENET.pth'.format(LOAD_DIR))
+        
+        torch.save(model.state_dict(), '{}/{}}'.format(LOAD_DIR,trained_model_file_name))
     return model.state_dict()
-
-
