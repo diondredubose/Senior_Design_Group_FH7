@@ -6,8 +6,8 @@ from UNETv3_TrainFunc import TrainingLoop
 #nano_ip = "192.168.86.33" #nano 4
 nano_ip = "192.168.86.116" #nano 3
 host_ip = "192.168.86.24"
-nano_port = 6000
-host_port = 6000
+nano_port = 7000
+host_port = 7000
 
 def send_message(ip_address, port, message):
     # create a socket object
@@ -50,7 +50,7 @@ def main():
 
  
     print("creating a folder for jetson\n")
-    folder_name = "jetson_2" #EDIT CONTAINS JETSON NUMBER
+    folder_name = "jetson_1" #EDIT CONTAINS JETSON NUMBER
     current_dir = os.getcwd()
     new_dir = os.path.join(current_dir, folder_name)
     if not os.path.exists(new_dir):
@@ -80,8 +80,8 @@ def main():
 
 
     print("getting the size of the global model on the nano side\n")        
-    LOAD_DIR = "/home/nano/srdsg/Senior_Design_Group_FH7/UNET/jetson_2"  #EDIT CONTAINS JETSON NUMBER
-    file_size = os.path.getsize(r"{}/global_model_2.zip".format(LOAD_DIR)) #EDIT CONTAINS JETSON NUMBER
+    LOAD_DIR = "/home/nano/srdsg/Senior_Design_Group_FH7/UNET/jetson_1"  #EDIT CONTAINS JETSON NUMBER
+    file_size = os.path.getsize(r"{}/global_model_1.zip".format(LOAD_DIR)) #EDIT CONTAINS JETSON NUMBER
     print("file size on the nano # side is {} bytes\n".format(file_size))
 
     print("sending a number representing the size of the global model to host\n")
@@ -97,17 +97,17 @@ def main():
 
 
     print("extract the global model from its zip file\n")
-    with zipfile.ZipFile("{}/{}".format(LOAD_DIR, "global_model_2.zip"), 'r') as zip_ref: #EDIT CONTAINS JETSON NUMBER
+    with zipfile.ZipFile("{}/{}".format(LOAD_DIR, "global_model_1.zip"), 'r') as zip_ref: #EDIT CONTAINS JETSON NUMBER
         zip_ref.extractall("{}/".format(LOAD_DIR))
-        os.remove("{}/{}".format(LOAD_DIR, "global_model_2.zip")) #EDIT CONTAINS JETSON NUMBER
-    print("global_model_2.zip has been extracted for training loop and subsequently deleted\n") #EDIT CONTAINS JETSON NUMBER
+        os.remove("{}/{}".format(LOAD_DIR, "global_model_1.zip")) #EDIT CONTAINS JETSON NUMBER
+    print("global_model_1.zip has been extracted for training loop and subsequently deleted\n") #EDIT CONTAINS JETSON NUMBER
 
     print("setting name of trained model file\n")
-    trained_model_file_name = "nano_2_trained_model.pth" #EDIT CONTAINS JETSON NUMBER
+    trained_model_file_name = "nano_1_trained_model.pth" #EDIT CONTAINS JETSON NUMBER
     print("name of trained model is {}\n".format(trained_model_file_name))
 
     print("entering jetson folder")
-    folder_name = "jetson_2"  #EDIT CONTAINS JETSON NUMBER
+    folder_name = "jetson_1"  #EDIT CONTAINS JETSON NUMBER
     current_dir = os.getcwd()
     folder_path = os.path.join(current_dir, folder_name)
 
@@ -122,7 +122,7 @@ def main():
     print("training of model complete\n")
 
     print("zipping the trained model on nano\n")
-    with zipfile.ZipFile("trained_model_2.zip", mode = 'w') as archive: #EDIT CONTAINS JETSON NUMBER
+    with zipfile.ZipFile("trained_model_1.zip", mode = 'w') as archive: #EDIT CONTAINS JETSON NUMBER
         archive.write(trained_model_file_name)
     print("zipping of trained model complete\n")
 
@@ -140,7 +140,7 @@ def main():
 
 
     print("getting size of the trained model on the nano side\n")
-    file_size = os.path.getsize(r"{}/trained_model_2.zip".format(LOAD_DIR)) #EDIT CONTAINS JETSON NUMBER
+    file_size = os.path.getsize(r"{}/trained_model_1.zip".format(LOAD_DIR)) #EDIT CONTAINS JETSON NUMBER
     print("file size of the trained model is {} bytes\n".format(file_size))
 
     print("sending a number to the host laptop reprensenting the size of the trained model on the nano side\n")
@@ -149,15 +149,15 @@ def main():
 
     print("removing trained model from the nano side\n")
     os.remove("{}/{}".format(LOAD_DIR, trained_model_file_name))
-    os.remove("{}/{}".format(LOAD_DIR, "trained_model_2.zip")) #EDIT CONTAINS JETSON NUMBER
+    os.remove("{}/{}".format(LOAD_DIR, "trained_model_1.zip")) #EDIT CONTAINS JETSON NUMBER
 
     print("exiting jetson folder")
     current_dir = os.getcwd()
-    if os.path.basename(current_dir) == "jetson_2": #EDIT CONTAINS JETSON NUMBER
+    if os.path.basename(current_dir) == "jetson_1": #EDIT CONTAINS JETSON NUMBER
         os.chdir('..')
         print(f"Exited {current_dir}, current working directory is now {os.getcwd()}")
     else:
-        print(f"Error: current directory is not jetson_2")  #EDIT CONTAINS JETSON NUMBER 
+        print(f"Error: current directory is not jetson_1")  #EDIT CONTAINS JETSON NUMBER 
 
     print("---END OF NANO CODE---\n")
 
