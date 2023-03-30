@@ -18,6 +18,22 @@ remote_model_path = ["~/srdsg/Senior_Design_Group_FH7/UNET/jetson_0","~/srdsg/Se
 trained_model_path = ["~/srdsg/Senior_Design_Group_FH7/UNET/jetson_0/trained_model_0.zip", "~/srdsg/Senior_Design_Group_FH7/UNET/jetson_1/trained_model_1.zip", "~/srdsg/Senior_Design_Group_FH7/UNET/jetson_2/trained_model_2.zip"]
 weight_path = r"D:\synology\SynologyDrive\Classwork\Diondre\Senior_Design_Group_FH7\UNET\weights"
 
+results = []
+def fake_averaging():
+    directory = weight_path
+    f = open(weight_path, 'r')
+    num_obj = 0
+    for filename in os.listdir(directory):
+        f = os.path.join(directory, filename)
+        num_obj = num_obj +1
+        # checking if it is a file
+        if os.path.isfile(f):
+            new_output = (f.readline())
+            res = int(new_output[2])
+            results.append(res)
+            print(res)
+    return sum(results)/num_obj
+
 class DeviceHandler(threading.Thread):
     def __init__(self, nano_ip, host_ip, nano_port, host_port, trained_model_path, jetson_num, remote_model_path,global_model_path):
         threading.Thread.__init__(self)
@@ -235,6 +251,9 @@ def main():
     host_thread_2.join()
 
     print("starting federated averaging")
+
+    fake_averaging()
+    
     return
 
 
