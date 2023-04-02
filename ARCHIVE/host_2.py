@@ -4,64 +4,35 @@ import paramiko
 import scp
 import os
 import threading
-import torch
 
-#nano_ip = ["192.168.86.33", "192.168.86.33" , "192.168.86.33"] #nano 4
-#nano_ip = ["192.168.86.116","192.168.86.116","192.168.86.116"] #nano 3
-
-nano_ip = ["0",
-           "0",
-           "0",
-           "192.168.86.116",
-           "192.168.86.33"] #nano x, x, x, 3, 4
-
+#nano_ip = "192.168.86.33" #nano 4
+nano_ip = ["192.168.86.116","192.168.86.116","192.168.86.116"] #nano 3
 host_ip = "192.168.86.24"
-nano_port = [0,0,0,8000,7000,6000]
-host_port = [0,0,0,8000,7000,6000]
+nano_port = [8000,7000,6000]
+host_port = [8000,7000,6000]
 
 username = "nano"
 password = "12345678"
-global_model_path = r"D:\synology\SynologyDrive\Classwork\Diondre\Senior_Design_Group_FH7\UNET\global_model.zip"
-
-remote_model_path = ["~/srdsg/Senior_Design_Group_FH7/UNET/jetson_0",
-                     "~/srdsg/Senior_Design_Group_FH7/UNET/jetson_1",
-                     "~/srdsg/Senior_Design_Group_FH7/UNET/jetson_2",
-                     "~/srdsg/Senior_Design_Group_FH7/UNET/jetson_3",
-                     "~/srdsg/Senior_Design_Group_FH7/UNET/jetson_4"]
-
-trained_model_path = ["~/srdsg/Senior_Design_Group_FH7/UNET/trained_model_0.zip",
-                      "~/srdsg/Senior_Design_Group_FH7/UNET/trained_model_1.zip",
-                      "~/srdsg/Senior_Design_Group_FH7/UNET/trained_model_2.zip",
-                      "~/srdsg/Senior_Design_Group_FH7/UNET/trained_model_3.zip",
-                      "~/srdsg/Senior_Design_Group_FH7/UNET/trained_model_4.zip"]
-
+global_model_path = [r"D:\synology\SynologyDrive\Classwork\Diondre\Senior_Design_Group_FH7\UNET\global_model_0.zip", r"D:\synology\SynologyDrive\Classwork\Diondre\Senior_Design_Group_FH7\UNET\global_model_1.zip",r"D:\synology\SynologyDrive\Classwork\Diondre\Senior_Design_Group_FH7\UNET\global_model_2.zip"]
+remote_model_path = ["~/srdsg/Senior_Design_Group_FH7/UNET/jetson_0","~/srdsg/Senior_Design_Group_FH7/UNET/jetson_1","~/srdsg/Senior_Design_Group_FH7/UNET/jetson_2"]
+trained_model_path = ["~/srdsg/Senior_Design_Group_FH7/UNET/jetson_0/trained_model_0.zip", "~/srdsg/Senior_Design_Group_FH7/UNET/jetson_1/trained_model_1.zip", "~/srdsg/Senior_Design_Group_FH7/UNET/jetson_2/trained_model_2.zip"]
 weight_path = r"D:\synology\SynologyDrive\Classwork\Diondre\Senior_Design_Group_FH7\UNET\weights"
 
-def fed_averager():
-    Weights = []
-    Global_Model = {}
-
-    for file in os.listdir("{}".format(weight_path)):
-        with zipfile.ZipFile("{}/{}".format(weight_path, file), 'r') as zip_ref:
-            zip_ref.extractall("{}/".format(weight_path))
-        os.remove("{}\{}".format(weight_path, file))
-
-    for file in os.listdir("{}".format(weight_path)):
-        Weights.append(torch.load("{}/{}".format(weight_path, file), map_location=torch.device('cpu')))
-        os.remove("{}/{}".format(weight_path, file))
-
-    for i in range(Weights.__len__()):
-        for key in Weights[0]:
-            temp = Weights[i][key]
-            if key in Global_Model:
-                Global_Model[key] += temp
-            else:
-                Global_Model[key] = temp
-
-    for key in Global_Model:
-        Global_Model[key] = Global_Model[key] / Weights.__len__()
-
-    torch.save(obj = Global_Model, f= global_model_path)
+results = []
+def fake_averaging():
+    directory = weight_path
+    f = open(weight_path, 'r')
+    num_obj = 0
+    for filename in os.listdir(directory):
+        f = os.path.join(directory, filename)
+        num_obj = num_obj +1
+        # checking if it is a file
+        if os.path.isfile(f):
+            new_output = (f.readline())
+            res = int(new_output[2])
+            results.append(res)
+            print(res)
+    return sum(results)/num_obj
 
 class DeviceHandler(threading.Thread):
     def __init__(self, nano_ip, host_ip, nano_port, host_port, trained_model_path, jetson_num, remote_model_path,global_model_path):
@@ -96,7 +67,7 @@ class DeviceHandler(threading.Thread):
 
         return
 
-    def retrieve_global_model(self,trained_model_path): 
+    def retrieve_global_model(self,trained_model_path): #check to see if works or not
             # create a new SSH client object
         ssh = paramiko.SSHClient()
 
@@ -127,6 +98,7 @@ class DeviceHandler(threading.Thread):
         # close the socket
         sock.close()
 
+
     def receive_message(self, ip_address, port):
         # create a socket object
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -146,7 +118,7 @@ class DeviceHandler(threading.Thread):
         # close the connection and socket
         conn.close()
         sock.close()
-        
+        print(data.decode())
         # return the message as a string
         return data.decode()
 
@@ -154,7 +126,7 @@ class DeviceHandler(threading.Thread):
     def run(self):
         print("Beginning of Thread for Jetson {}...\n".format(self.jetson_num))
 
-        
+        print("---START OF HOST CODE---\n")
         print("send a message to nano\n") 
         self.send_message(self.nano_ip, self.nano_port, "connected")
         print("'connected' message sent to the nano\n")
@@ -164,6 +136,12 @@ class DeviceHandler(threading.Thread):
             if self.receive_message(self.host_ip, self.host_port) == "ACK":
                 break
         print("'ACK'  message received by the host\n")
+
+
+        print("zipping global model\n") 
+        with zipfile.ZipFile("global_model_{}.zip".format(self.jetson_num), mode = 'w') as archive:
+            archive.write(r"D:\synology\SynologyDrive\Classwork\Diondre\Senior_Design_Group_FH7\UNET\UNET_MBIMAGENET.pth")
+        print("zipping of global model complete\n")
 
         print("sending global model to nano via ssh connection\n")
         self.send_global_model()
@@ -176,8 +154,9 @@ class DeviceHandler(threading.Thread):
 
         print("getting the size of the global model the host side\n")      
         LOAD_DIR = r"D:\synology\SynologyDrive\Classwork\Diondre\Senior_Design_Group_FH7\UNET"
-        file_size = os.path.getsize(r"{}\global_model.zip".format(LOAD_DIR))
+        file_size = os.path.getsize(r"{}\global_model_{}.zip".format(LOAD_DIR,self.jetson_num))
         print("The file size of global model is {} bytes\n".format(file_size))
+
 
         print("waiting for the nano to send back the correct size of the global model\n")
         while True:
@@ -185,9 +164,19 @@ class DeviceHandler(threading.Thread):
                 break
         print("correct file size has been sent back from nano\n")
 
+
+        print("removing global model on the host side\n")
+        new_dir = os.path.join(LOAD_DIR, "global_model.zip")
+        if os.path.exists(new_dir):
+            os.remove("{}/{}".format(LOAD_DIR, "global_model.zip")) 
+        print("global_model.zip has been deleted from host\n")
+
+
         print("send a message to the nano to start training\n")
         self.send_message(self.nano_ip,self.nano_port,"start_train")
         print("start_train message has been sent to nano\n")
+
+
 
         print("waiting for message from nano that the model has finished training\n")
         while(True):
@@ -214,68 +203,57 @@ class DeviceHandler(threading.Thread):
             if self.receive_message(self.host_ip, self.host_port) == "{}".format(file_size):
                 break
         print("the correct file size was sent back by nano")
-        print("---END OF THREAD ---\n")
+        print("---END OF HOST CODE---\n")
 
         return
 
 def main():
 
-    
-    
-    loops = 3
-    print("---START OF HOST CODE---\n")
-    # Federated learning loop begins here
-    for i in range(loops):
-
-
-        host_thread_3 = DeviceHandler(
-                                    nano_ip= nano_ip[3], 
+    host_thread_0 = DeviceHandler(
+                                    nano_ip= nano_ip[0], 
                                     host_ip= host_ip, 
-                                    nano_port= nano_port[3], 
-                                    host_port=host_port[3], 
-                                    trained_model_path= trained_model_path[3], 
-                                    jetson_num= 3,
-                                    remote_model_path = remote_model_path[3],
-                                    global_model_path = global_model_path
+                                    nano_port= nano_port[0], 
+                                    host_port=host_port[0], 
+                                    trained_model_path= trained_model_path[0], 
+                                    jetson_num= 0,
+                                    remote_model_path = remote_model_path[0],
+                                    global_model_path = global_model_path[0]
                                     )
     
-        host_thread_4 = DeviceHandler(
-                                nano_ip= nano_ip[4], 
+    host_thread_1 = DeviceHandler(
+                                nano_ip= nano_ip[1], 
                                 host_ip= host_ip, 
-                                nano_port= nano_port[4], 
-                                host_port=host_port[4], 
-                                trained_model_path= trained_model_path[4], 
-                                jetson_num= 4,
-                                remote_model_path= remote_model_path[4],
-                                global_model_path = global_model_path
+                                nano_port= nano_port[1], 
+                                host_port=host_port[1], 
+                                trained_model_path= trained_model_path[1], 
+                                jetson_num= 1,
+                                remote_model_path= remote_model_path[1],
+                                global_model_path = global_model_path[1]
                                 )
-        
-        print("federated learning loop #{}\n".format(i+1))
-        print("zipping global model\n") 
-        with zipfile.ZipFile("global_model.zip", mode = 'w') as archive:
-            archive.write(r"UNET_MBIMAGENET.pth")
-        print("zipping of global model complete\n")
+    
+    host_thread_2 = DeviceHandler(
+                                nano_ip= nano_ip[2], 
+                                host_ip= host_ip, 
+                                nano_port= nano_port[2], 
+                                host_port=host_port[2], 
+                                trained_model_path= trained_model_path[2], 
+                                jetson_num= 2,
+                                remote_model_path= remote_model_path[2],
+                                global_model_path = global_model_path[2]
+                                )
+    
+    host_thread_0.start()
+    host_thread_1.start()
+    host_thread_2.start()
 
-        print("starting threads for each nano\n")
-        #host_thread_3.start()
-        host_thread_4.start()
-        
+    host_thread_0.join()
+    host_thread_1.join()
+    host_thread_2.join()
 
-        #host_thread_3.join()
-        host_thread_4.join()
-        
-        print("removing global model on the host side\n")
-        if os.path.exists(global_model_path):
-            os.remove(global_model_path) 
-        print("global_model.zip has been deleted from host\n")
-        
-        print("starting federated averaging")
-        fed_averager()
+    print("starting federated averaging")
 
-        # end of federation loop, should repeat as needed
-
-    print("federated learning finished")
-
+    fake_averaging()
+    
     return
 
 

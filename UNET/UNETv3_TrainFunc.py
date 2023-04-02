@@ -12,6 +12,7 @@ from torchvision import transforms, utils
 import kornia.losses.ssim
 from DepthDataset import DepthDataset, Augmentation, ToTensor
 import matplotlib.pyplot as plt
+import os
 
 
 net = mobilenetv3_small()
@@ -93,11 +94,33 @@ def imgrad_yx(img):
 
 
 
-def TrainingLoop( batch_size, epochs, lr, trained_model_file_name):
+def TrainingLoop( batch_size, epochs, lr, trained_model_file_name,jetson_num):
+    print("1")
     model = Model.cuda()
-    LOAD_DIR = "."
-    #model.load_state_dict(torch.load('{}/UNET_MBIMAGENET.pth'.format(LOAD_DIR)))
-    print('Model Loaded.')
+    print("2")
+    LOAD_DIR = "/home/srdsg/Senior_Design_Group_FH7/UNET"
+    print("3")
+
+    folder_name = "jetson_{}".format(jetson_num)
+    current_dir = os.getcwd()
+    folder_path = os.path.join(current_dir, folder_name)
+
+    if os.path.exists(folder_path):
+        os.chdir(folder_path)
+        print(f"Changed working directory to {folder_path}")
+    else:
+        print(f"Directory {folder_path} does not exist")
+
+    model.load_state_dict(torch.load('UNET_MBIMAGENET.pth'.format(LOAD_DIR,jetson_num)))
+
+    current_dir = os.getcwd()
+    if os.path.basename(current_dir) == "jetson_{}".format(jetson_num):
+        os.chdir('..')
+        print(f"Exited {current_dir}, current working directory is now {os.getcwd()}")
+    else:
+        print('Error: current directory is not jetson_{}'.format(jetson_num))
+
+    print("Model Loaded.")
 
     # epochs = 50
     # lr = 0.0001
@@ -120,8 +143,8 @@ def TrainingLoop( batch_size, epochs, lr, trained_model_file_name):
     epoch_list = []
 
     for epoch in range(epochs):
-
-        torch.save(model.state_dict(), '{}/{}}'.format(LOAD_DIR,trained_model_file_name))
+        print("4")
+        #torch.save(model.state_dict(), '{}/{}'.format(LOAD_DIR,"UNET_MBIMAGENET.pth"))
         batch_time = AverageMeter()
         losses = AverageMeter()
         N = len(train_loader)
@@ -181,6 +204,7 @@ def TrainingLoop( batch_size, epochs, lr, trained_model_file_name):
         # plt.xlabel("Epoch")
         # plt.ylabel("Loss")
         # plt.show()
-        
-        torch.save(model.state_dict(), '{}/{}}'.format(LOAD_DIR,trained_model_file_name))
+        print("5")
+        torch.save(model.state_dict(), '{}'.format(trained_model_file_name))
+        print("6")
     return model.state_dict()
