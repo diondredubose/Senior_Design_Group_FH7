@@ -81,7 +81,7 @@ def main():
 
     print("getting the size of the global model on the nano side\n")        
     LOAD_DIR = "/home/nano/srdsg/Senior_Design_Group_FH7/UNET/jetson_2"  #EDIT CONTAINS JETSON NUMBER
-    file_size = os.path.getsize(r"{}/global_model_2.zip".format(LOAD_DIR)) #EDIT CONTAINS JETSON NUMBER
+    file_size = os.path.getsize(r"{}/global_model.zip".format(LOAD_DIR)) #EDIT CONTAINS JETSON NUMBER
     print("file size on the nano # side is {} bytes\n".format(file_size))
 
     print("sending a number representing the size of the global model to host\n")
@@ -97,9 +97,9 @@ def main():
 
 
     print("extract the global model from its zip file\n")
-    with zipfile.ZipFile("{}/{}".format(LOAD_DIR, "global_model_2.zip"), 'r') as zip_ref: #EDIT CONTAINS JETSON NUMBER
+    with zipfile.ZipFile("{}/{}".format(LOAD_DIR, "global_model.zip"), 'r') as zip_ref: #EDIT CONTAINS JETSON NUMBER
         zip_ref.extractall("{}/".format(LOAD_DIR))
-        os.remove("{}/{}".format(LOAD_DIR, "global_model_2.zip")) #EDIT CONTAINS JETSON NUMBER
+        os.remove("{}/{}".format(LOAD_DIR, "global_model.zip")) #EDIT CONTAINS JETSON NUMBER
     print("global_model_2.zip has been extracted for training loop and subsequently deleted\n") #EDIT CONTAINS JETSON NUMBER
 
     print("setting name of trained model file\n")
