@@ -21,7 +21,9 @@ host_port = [0,0,0,8000,7000,6000]
 
 username = "nano"
 password = "12345678"
-global_model_path = r"D:\synology\SynologyDrive\Classwork\Diondre\Senior_Design_Group_FH7\UNET\global_model.zip"
+host_path = "D:\synology\SynologyDrive\Classwork\Diondre\Senior_Design_Group_FH7\UNET\"
+global_model_path = r"{}global_model.zip".format(host_path)
+weight_path = r"{}weights".format(host_path)
 
 remote_model_path = ["~/srdsg/Senior_Design_Group_FH7/UNET/jetson_0",
                      "~/srdsg/Senior_Design_Group_FH7/UNET/jetson_1",
@@ -35,7 +37,7 @@ trained_model_path = ["~/srdsg/Senior_Design_Group_FH7/UNET/trained_model_0.zip"
                       "~/srdsg/Senior_Design_Group_FH7/UNET/trained_model_3.zip",
                       "~/srdsg/Senior_Design_Group_FH7/UNET/trained_model_4.zip"]
 
-weight_path = r"D:\synology\SynologyDrive\Classwork\Diondre\Senior_Design_Group_FH7\UNET\weights"
+
 
 def fed_averager():
     Weights = []
