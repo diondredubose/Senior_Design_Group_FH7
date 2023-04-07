@@ -77,8 +77,12 @@ def fed_averager():
     if(verbosity >= 2):
         print("\t[++] extracting model files from zip files and appending")
     for file in os.listdir("{}".format(weight_path)):
-        with zipfile.ZipFile("{}/{}".format(weight_path, file), 'r') as zip_ref:
-            zip_ref.extractall("{}/".format(weight_path))
+        zip_file_size = os.path.getsize("{}/{}".format(weight_path, file))
+        if zip_file_size >= 5000000:
+            with zipfile.ZipFile("{}/{}".format(weight_path, file), 'r') as zip_ref:
+                zip_ref.extractall("{}/".format(weight_path))
+        else:
+            print(f"[!] trained model {file} is corrupted, not using for averaging")
         os.remove("{}\{}".format(weight_path, file))
 
     for file in os.listdir("{}".format(weight_path)):
@@ -99,10 +103,10 @@ def fed_averager():
     if(verbosity >= 2):
         print("\t[++] saving averaged/global model")
     torch.save(obj = Global_Model, f= rf"{host_dir}\UNET_MBIMAGENET.pth")
-    # TODO does this override? or need to delete UNET?
+    
 
 class DeviceHandler(threading.Thread):
-    def __init__(self, nano_ip, host_ip, nano_port, host_port, trained_model_path, jetson_num, remote_model_path,global_model_path):
+    def __init__(self, nano_ip, host_ip, nano_port, host_port, trained_model_path, jetson_num, remote_model_path,global_model_path, verbosity):
         threading.Thread.__init__(self)
         self.nano_ip = nano_ip
         self.host_ip =  host_ip
@@ -112,6 +116,7 @@ class DeviceHandler(threading.Thread):
         self.remote_model_path = remote_model_path
         self.jetson_num = jetson_num
         self.global_model_path = global_model_path
+        self.verbosity = verbosity
         return
 
     def send_global_model(self):
@@ -125,7 +130,7 @@ class DeviceHandler(threading.Thread):
         ssh.connect(hostname=self.nano_ip, username=username, password=password)
 
         # create a new SCP object
-        client = scp.SCPClient(ssh.get_transport())
+        client = scp.SCPClient(ssh.get_transport(), socket_timeout = 40)
         # use the SCP object to transfer the file
         client.put(self.global_model_path, remote_path=self.remote_model_path)
         # close the SCP and SSH connections
@@ -145,7 +150,7 @@ class DeviceHandler(threading.Thread):
         ssh.connect(hostname=self.nano_ip, username=username, password=password)
 
         # create a new SCP object
-        client = scp.SCPClient(ssh.get_transport())
+        client = scp.SCPClient(ssh.get_transport(), socket_timeout = 40)
         # use the SCP object to transfer the file
         client.get(trained_model_path, weight_path)
         # close the SCP and SSH connections
@@ -190,27 +195,25 @@ class DeviceHandler(threading.Thread):
 
 
     def run(self):
-        
-        if(verbosity >= 2):
+        if(self.verbosity >= 2):
             print("\t[++] [{}] Beginning of Thread for Jetson {}...\n".format(self.jetson_num,self.jetson_num))
 
-        
         #print("send a message to nano\n") 
         self.send_message(self.nano_ip, self.nano_port, "connected")
         #print("'connected' message sent to the nano\n")
         
-        if(verbosity >= 2):
+        if(self.verbosity >= 2):
             print("\t[++] [{}] waiting for the connection acknowedgement message from the nano\n".format(self.jetson_num))
         while True:
             if self.receive_message(self.host_ip, self.host_port) == "ACK":
                 break
         #print("'ACK'  message received by the host\n")
-        if(verbosity >= 2):
+        if(self.verbosity >= 2):
             print("\t[++] [{}] connected to jetson {}\n".format(self.jetson_num, self.jetson_num))
 
         #print("sending global model to nano via ssh connection\n")
         self.send_global_model()
-        if(verbosity >= 2):
+        if(self.verbosity >= 2):
             print("\t[++] [{}] global model has been sent to nano\n".format(self.jetson_num))
 
         #print("sending a message to nano to inform the nano that the global model was sent\n")
@@ -228,14 +231,14 @@ class DeviceHandler(threading.Thread):
                 break
         
         #print("correct file size has been sent back from nano\n")
-        if(verbosity >= 2):
+        if(self.verbosity >= 2):
             print("\t[++] [{}] file transferred sucessfully\n".format(self.jetson_num))
 
         #print("send a message to the nano to start training\n")
         self.send_message(self.nano_ip,self.nano_port,"start_train")
         #print("start_train message has been sent to nano\n")
 
-        if(verbosity >= 2):
+        if(self.verbosity >= 2):
             print("\t[++] [{}] training started -- waiting for message from nano that the model has finished training\n".format(self.jetson_num))
         while(True):
             if(self.receive_message(self.host_ip,self.host_port) == "train_finish"):
@@ -245,7 +248,7 @@ class DeviceHandler(threading.Thread):
 
         #print("retrieving trained model from the nano via ssh connection\n")
         self.retrieve_global_model(self.trained_model_path)
-        if(verbosity >= 2):
+        if(self.verbosity >= 2):
             print("\t[++] [{}] host has received the trained model from nano\n".format(self.jetson_num))
 
         #print("sending a message to nano to inform the nano that the trained model has been retrieved by the host laptop\n")
@@ -262,7 +265,7 @@ class DeviceHandler(threading.Thread):
             if self.receive_message(self.host_ip, self.host_port) == "{}".format(file_size):
                 break
         #print("the correct file size was sent back by nano")
-        if(verbosity >= 2):
+        if(self.verbosity >= 2):
             print(f"\t[++] [{self.jetson_num}] file transferred sucessfully\n")
             print(f"\t[++] [{self.jetson_num}] thread finished for jetson{self.jetson_num}\n")
 
@@ -311,7 +314,7 @@ def main():
 
     #return
     
-    print("---RUNNING HOST.PY---\n")
+    print("\n---RUNNING HOST.PY---\n")
     if(verbosity >= 1):
         print("[+] initalizing workspace")
     # deletes zip files and pth files in the host dir
@@ -321,11 +324,21 @@ def main():
             print("\t[++] global_model.zip has been deleted from host\n")
     if os.path.exists(rf"{host_dir}\UNET_MBIMAGENET.pth"):
         os.remove(rf"{host_dir}\UNET_MBIMAGENET.pth")
+        if(verbosity >= 2):
+            print("\t[++] model file has been deleted from host\n")
+
+    for file in os.listdir("{}".format(weight_path)):
+        os.remove("{}\{}".format(weight_path, file))
+    if(verbosity >= 2):
+        print("\t[++] weights folder emptied\n")
 
     pretrained = rf"{host_dir}\pretrained_model\UNET_MBIMAGENET.pth"
     os.system(f'copy {pretrained} {host_dir}')
     if(verbosity >= 2):
-            print("\t[++] global_model.zip has been deleted from host\n")
+            print("\t[++] pretrained model copied into working dir\n")
+
+
+
 
     # TODO make sure to delete anything in the weights folder 
 
@@ -339,7 +352,8 @@ def main():
                                     trained_model_path= trained_model_path[1], 
                                     jetson_num= 1,
                                     remote_model_path = remote_model_path[1],
-                                    global_model_path = global_model_path
+                                    global_model_path = global_model_path,
+                                    verbosity=verbosity
                                     )
 
         host_thread_2 = DeviceHandler(
@@ -350,7 +364,8 @@ def main():
                                     trained_model_path= trained_model_path[2], 
                                     jetson_num= 2,
                                     remote_model_path = remote_model_path[2],
-                                    global_model_path = global_model_path
+                                    global_model_path = global_model_path,
+                                    verbosity=verbosity
                                     )
 
         host_thread_3 = DeviceHandler(
@@ -361,7 +376,8 @@ def main():
                                     trained_model_path= trained_model_path[3], 
                                     jetson_num= 3,
                                     remote_model_path = remote_model_path[3],
-                                    global_model_path = global_model_path
+                                    global_model_path = global_model_path,
+                                    verbosity=verbosity
                                     )
     
         host_thread_4 = DeviceHandler(
@@ -372,7 +388,8 @@ def main():
                                     trained_model_path= trained_model_path[4], 
                                     jetson_num= 4,
                                     remote_model_path= remote_model_path[4],
-                                    global_model_path = global_model_path
+                                    global_model_path = global_model_path,
+                                    verbosity=verbosity
                                     )
 
         host_thread_5 = DeviceHandler(
@@ -383,7 +400,8 @@ def main():
                                     trained_model_path= trained_model_path[5], 
                                     jetson_num= 5,
                                     remote_model_path = remote_model_path[5],
-                                    global_model_path = global_model_path
+                                    global_model_path = global_model_path,
+                                    verbosity=verbosity
                                     )
 
         if(verbosity >= 1):
